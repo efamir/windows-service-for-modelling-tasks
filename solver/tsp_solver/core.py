@@ -1,3 +1,5 @@
+import asyncio
+import os
 import random
 
 import numpy as np
@@ -5,9 +7,12 @@ from deap import base, creator, tools, algorithms
 import matplotlib.pyplot as plt
 import io
 import base64
+from solver import AsyncSolver
+from concurrent.futures import ProcessPoolExecutor
 
 MAX_X = 100
 MAX_Y = 100
+MAX_WORKERS = os.cpu_count()
 
 
 class City:
@@ -22,7 +27,7 @@ if not hasattr(creator, "Route"):
     creator.create("Route", list, fitness=creator.FitnessMin)
 
 
-class TSPSolver:
+class TSPSolver(AsyncSolver):
     @staticmethod
     def calculate_distance(city1: City, city2: City):
         return ((city1.x - city2.x) ** 2 + (city1.y - city2.y) ** 2) ** 0.5
@@ -64,9 +69,11 @@ class TSPSolver:
 
         return result
 
-    def __init__(self, cities_count=100, population_size=300, max_generations=200, p_crossover=0.09, p_mutation=0.9,
+    def __init__(self, cities: list[tuple[int, int]] = None,
+                 cities_count=100, population_size=300, max_generations=200,
+                 p_crossover=0.09, p_mutation=0.9,
                  tournsize=7, p_qualitative=0.6):
-        if not 2 <= cities_count <= 300:
+        if not 2 <= (cities_count if not cities else len(cities)) <= 300:
             raise ValueError("cities_count must be between 2 and 300")
         if not 1 <= population_size <= 1000:
             raise ValueError("population_size must be between 1 and 1000")
@@ -84,7 +91,7 @@ class TSPSolver:
             raise ValueError("tournsize must be between 2 and cities_count")
 
         self.__logbook = None
-        self.__cities_count = cities_count
+        self.__cities_count = cities_count if not cities else len(cities)
         self.__population_size = population_size
         self.__max_generations = max_generations
         self.__p_crossover = p_crossover
@@ -95,11 +102,18 @@ class TSPSolver:
         self.__cities = []
         self.__cities_xs = []
         self.__cities_ys = []
-        for _ in range(self.__cities_count):
-            new_city = City(random.randint(0, MAX_X), random.randint(0, MAX_Y))
-            self.__cities.append(new_city)
-            self.__cities_xs.append(new_city.x)
-            self.__cities_ys.append(new_city.y)
+        if not cities:
+            for _ in range(self.__cities_count):
+                new_city = City(random.randint(0, MAX_X), random.randint(0, MAX_Y))
+                self.__cities.append(new_city)
+                self.__cities_xs.append(new_city.x)
+                self.__cities_ys.append(new_city.y)
+        else:
+            for x, y in cities:
+                new_city = City(x, y)
+                self.__cities.append(new_city)
+                self.__cities_xs.append(new_city.x)
+                self.__cities_ys.append(new_city.y)
 
         self.__distances = []
         for i in range(len(self.__cities)):
@@ -136,7 +150,7 @@ class TSPSolver:
         plt.close()
         return image_base64
 
-    def solve(self):
+    def _solve(self):
         # Ініціалізація популяції
         pop = self.__toolbox.population(n=self.__cities_count)
         hof = tools.HallOfFame(1)
@@ -155,6 +169,23 @@ class TSPSolver:
         )
 
         self.__best_overall = hof[0]
+
+    @staticmethod
+    async def solve(cities: list[tuple[int, int]] = None):
+        loop = asyncio.get_running_loop()
+        with ProcessPoolExecutor(max_workers=MAX_WORKERS) as executor:
+            await loop.run_in_executor(executor, TSPSolver.__solve_for_executor, cities)
+
+    @staticmethod
+    def __solve_for_executor(cities: list[tuple[int, int]] = None):
+        tsp = TSPSolver(cities)
+        cities_graph = tsp.plot_cities_graph()
+        tsp._solve()
+        shortest_distance = tsp.best_overall[1]
+        print("Shortest distance: ", shortest_distance)
+        solving_progression = tsp.plot_solving_progression(avg=True)
+        best_root = tsp.plot_best_route()
+        return shortest_distance, best_root, cities_graph, solving_progression
 
     @property
     def best_overall(self):
@@ -208,12 +239,3 @@ class TSPSolver:
         image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
         plt.close()
         return image_base64
-
-
-if __name__ == '__main__':
-    tsp = TSPSolver()
-    tsp.plot_cities_graph()
-    tsp.solve()
-    print("Shortest distance: ", tsp.best_overall[1])
-    tsp.plot_solving_progression(avg=True)
-    tsp.plot_best_route()
