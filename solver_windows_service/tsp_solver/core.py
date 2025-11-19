@@ -1,14 +1,16 @@
 import asyncio
+import base64
+import io
 import os
 import random
+from concurrent.futures import ProcessPoolExecutor
+import uuid
 
+import matplotlib.pyplot as plt
 import numpy as np
 from deap import base, creator, tools, algorithms
-import matplotlib.pyplot as plt
-import io
-import base64
-from solver import AsyncSolver
-from concurrent.futures import ProcessPoolExecutor
+
+from solver_windows_service.solver import AsyncSolver
 
 MAX_X = 100
 MAX_Y = 100
@@ -165,7 +167,7 @@ class TSPSolver(AsyncSolver):
             ngen=self.__max_generations,
             stats=self.__stats,
             halloffame=hof,
-            verbose=True
+            verbose=False
         )
 
         self.__best_overall = hof[0]
@@ -173,12 +175,23 @@ class TSPSolver(AsyncSolver):
     @staticmethod
     async def solve(cities: list[tuple[int, int]] = None):
         loop = asyncio.get_running_loop()
+        cities_len = len(cities)
+        pop_size = cities_len * 3
+        max_generations = cities_len * 2
+        raw_tournsize = pop_size * 0.02333
+        calculated_tournsize = int(round(raw_tournsize))
+        tournsize = max(2, min(calculated_tournsize, pop_size))
         with ProcessPoolExecutor(max_workers=MAX_WORKERS) as executor:
-            await loop.run_in_executor(executor, TSPSolver.__solve_for_executor, cities)
+            await loop.run_in_executor(
+                executor, TSPSolver._solve_for_executor, cities, pop_size, max_generations, tournsize
+            )
 
     @staticmethod
-    def __solve_for_executor(cities: list[tuple[int, int]] = None):
-        tsp = TSPSolver(cities)
+    def _solve_for_executor(cities: list[tuple[int, int]] = None,
+                            population_size=300,
+                            max_generations=200,
+                            tournsize=7):
+        tsp = TSPSolver(cities, population_size=population_size, max_generations=max_generations, tournsize=tournsize)
         cities_graph = tsp.plot_cities_graph()
         tsp._solve()
         shortest_distance = tsp.best_overall[1]
@@ -233,9 +246,24 @@ class TSPSolver(AsyncSolver):
             plt.plot([city1.x, city2.x], [city1.y, city2.y], "r-", linewidth=1)
         plt.tight_layout()
 
+        # TODO: remove, because temp
+        debug_dir = "debug_plots"
+        os.makedirs(debug_dir, exist_ok=True)
+        random_filename = f"{uuid.uuid4().hex}.png"
+        save_path = os.path.join(debug_dir, random_filename)
+        plt.savefig(save_path, format="png")
+        print(f"!!! DEBUG: Best route file result: {save_path}")
         buffer = io.BytesIO()
         plt.savefig(buffer, format="png")
         buffer.seek(0)
         image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
         plt.close()
         return image_base64
+
+        # buffer = io.BytesIO()
+        # plt.plot()
+        # plt.savefig(buffer, format="png")
+        # buffer.seek(0)
+        # image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
+        # plt.close()
+        # return image_base64
