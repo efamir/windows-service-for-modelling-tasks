@@ -5,7 +5,7 @@ import random
 
 
 def create_cities():
-    return [(random.randint(-100, 100), random.randint(-100, 100)) for _ in range(40)]
+    return [[random.randint(-100, 100), random.randint(-100, 100)] for _ in range(40)]
 
 
 def create_cities_float():
@@ -16,16 +16,13 @@ def create_cities_float():
 
 
 async def main():
-    tasks = [asyncio.create_task(TSPSolver.solve(create_cities())) for _ in range(4)]
+    tasks = [asyncio.create_task(TSPSolver.solve(str(create_cities()))) for _ in range(4)]
     reses = await asyncio.gather(*tasks)
     for res in reses:
-        for item in res[:2]:
-            print(item)
+        print(res)
 
 
 if __name__ == '__main__':
-    cities = [(random.randint(-100, 200), random.randint(-100, 150)) for _ in range(10)]
-
     start = time.perf_counter()
     print("Starting async")
     asyncio.run(main())

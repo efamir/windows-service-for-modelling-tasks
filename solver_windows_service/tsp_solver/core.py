@@ -4,6 +4,7 @@ import io
 import os
 import random
 import uuid
+import json
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -70,7 +71,7 @@ class TSPSolver(AsyncSolver):
 
         return result
 
-    def __init__(self, cities: list[tuple[float, float]] = None,
+    def __init__(self, cities: list[list[float, float]] = None,
                  cities_count=100, population_size=300, max_generations=200,
                  p_crossover=0.09, p_mutation=0.9,
                  tournsize=7, p_qualitative=0.6):
@@ -172,7 +173,10 @@ class TSPSolver(AsyncSolver):
         self.__best_overall = hof[0]
 
     @staticmethod
-    async def solve(cities: list[tuple[float, float]] = None):
+    async def solve(inp=None | str, cities: list[list[float, float]] = None):
+        assert inp is not None or cities is not None
+        cities = json.loads(inp) if isinstance(inp, str) else cities
+
         loop = asyncio.get_running_loop()
         cities_len = len(cities)
         pop_size = cities_len * 3
@@ -185,18 +189,20 @@ class TSPSolver(AsyncSolver):
         )
 
     @staticmethod
-    def _solve_for_executor(cities: list[tuple[float, float]] = None,
+    def _solve_for_executor(cities: list[list[float, float]] = None,
                             population_size=300,
                             max_generations=200,
                             tournsize=7):
         tsp = TSPSolver(cities, population_size=population_size, max_generations=max_generations, tournsize=tournsize)
-        cities_graph = tsp.plot_cities_graph()
         tsp._solve()
+        print("Solved")
         shortest_distance = tsp.best_overall[1]
-        print("Shortest distance: ", shortest_distance)
-        solving_progression = tsp.plot_solving_progression(avg=True)
-        best_root = tsp.plot_best_route()
-        return shortest_distance, tsp.best, best_root, cities_graph, solving_progression
+        best_root_graph = tsp.plot_best_route()
+        return json.dumps({
+            "shortest_distance": shortest_distance,
+            "best_route": tsp.best,
+            "best_root_graph": best_root_graph,
+        })
 
     @property
     def best_overall(self):
@@ -233,7 +239,7 @@ class TSPSolver(AsyncSolver):
         if not self.__best_overall:
             return []
 
-        return [(self.__cities[city].x, self.__cities[city].y) for city in self.__best_overall]
+        return [[self.__cities[city].x, self.__cities[city].y] for city in self.__best_overall]
 
     def plot_best_route(self):
         if not self.__best_overall:

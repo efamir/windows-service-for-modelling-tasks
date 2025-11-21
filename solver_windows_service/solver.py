@@ -30,12 +30,12 @@ def cleanup_executor():
 class Solver(ABC):
     @staticmethod
     @abstractmethod
-    def solve() -> dict:
+    def solve() -> str:
         pass
 
 
 class AsyncSolver(Solver):
     @staticmethod
     @abstractmethod
-    async def solve():
+    async def solve() -> str:
         pass
