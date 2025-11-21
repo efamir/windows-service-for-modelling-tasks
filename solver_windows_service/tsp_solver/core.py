@@ -71,7 +71,7 @@ class TSPSolver(AsyncSolver):
 
         return result
 
-    def __init__(self, cities: list[tuple[int, int]] = None,
+    def __init__(self, cities: list[tuple[float, float]] = None,
                  cities_count=100, population_size=300, max_generations=200,
                  p_crossover=0.09, p_mutation=0.9,
                  tournsize=7, p_qualitative=0.6):
@@ -173,7 +173,7 @@ class TSPSolver(AsyncSolver):
         self.__best_overall = hof[0]
 
     @staticmethod
-    async def solve(cities: list[tuple[int, int]] = None):
+    async def solve(cities: list[tuple[float, float]] = None):
         loop = asyncio.get_running_loop()
         cities_len = len(cities)
         pop_size = cities_len * 3
@@ -187,7 +187,7 @@ class TSPSolver(AsyncSolver):
             )
 
     @staticmethod
-    def _solve_for_executor(cities: list[tuple[int, int]] = None,
+    def _solve_for_executor(cities: list[tuple[float, float]] = None,
                             population_size=300,
                             max_generations=200,
                             tournsize=7):

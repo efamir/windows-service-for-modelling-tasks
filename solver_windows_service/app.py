@@ -8,8 +8,15 @@ def create_cities():
     return [(random.randint(-100, 100), random.randint(-100, 100)) for _ in range(40)]
 
 
+def create_cities_float():
+    def get_random_float(from_: int, to: int):
+        return (to - from_) * random.random() + from_
+
+    return [(get_random_float(-100, 200), get_random_float(-110, 150)) for _ in range(40)]
+
+
 async def main(cities: list[tuple[int, int]]):
-    tasks = [asyncio.create_task(TSPSolver.solve(create_cities())) for _ in range(4)]
+    tasks = [asyncio.create_task(TSPSolver.solve(create_cities_float())) for _ in range(1)]
     await asyncio.gather(*tasks)
 
 
@@ -25,7 +32,7 @@ def sync(cities: list[tuple[int, int]]):
 
 
 if __name__ == '__main__':
-    cities = [(random.randint(-100, 100), random.randint(-100, 100)) for _ in range(10)]
+    cities = [(random.randint(-100, 200), random.randint(-100, 150)) for _ in range(10)]
 
     start = time.perf_counter()
     print("Starting async")
