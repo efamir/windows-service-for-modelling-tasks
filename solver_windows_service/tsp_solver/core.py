@@ -1,20 +1,16 @@
 import asyncio
 import base64
 import io
+import json
 import os
 import random
 import uuid
-import json
 
 import matplotlib.pyplot as plt
 import numpy as np
-from deap import base, creator, tools, algorithms
+from deap import algorithms, base, creator, tools
 
 from solver_windows_service.solver import AsyncSolver, get_shared_executor
-
-MAX_X = 100
-MAX_Y = 100
-MAX_WORKERS = os.cpu_count()
 
 
 class City:
@@ -106,7 +102,7 @@ class TSPSolver(AsyncSolver):
         self.__cities_ys = []
         if not cities:
             for _ in range(self.__cities_count):
-                new_city = City(random.randint(0, MAX_X), random.randint(0, MAX_Y))
+                new_city = City(random.randint(0, 100), random.randint(0, 100))
                 self.__cities.append(new_city)
                 self.__cities_xs.append(new_city.x)
                 self.__cities_ys.append(new_city.y)
@@ -257,24 +253,25 @@ class TSPSolver(AsyncSolver):
             plt.plot([city1.x, city2.x], [city1.y, city2.y], "r-", linewidth=1)
         plt.tight_layout()
 
-        # TODO: remove, because temp
-        debug_dir = "debug_plots"
-        os.makedirs(debug_dir, exist_ok=True)
-        random_filename = f"{uuid.uuid4().hex}.png"
-        save_path = os.path.join(debug_dir, random_filename)
-        plt.savefig(save_path, format="png")
-        print(f"!!! DEBUG: Best route file result: {save_path}")
-        buffer = io.BytesIO()
-        plt.savefig(buffer, format="png")
-        buffer.seek(0)
-        image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
-        plt.close()
-        return image_base64
-
+        # FOR DEBUG
+        # debug_dir = "debug_plots"
+        # os.makedirs(debug_dir, exist_ok=True)
+        # random_filename = f"{uuid.uuid4().hex}.png"
+        # save_path = os.path.join(debug_dir, random_filename)
+        # plt.savefig(save_path, format="png")
+        # print(f"!!! DEBUG: Best route file result: {save_path}")
         # buffer = io.BytesIO()
-        # plt.plot()
         # plt.savefig(buffer, format="png")
         # buffer.seek(0)
         # image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
         # plt.close()
         # return image_base64
+
+        # FOR PROD
+        buffer = io.BytesIO()
+        plt.plot()
+        plt.savefig(buffer, format="png")
+        buffer.seek(0)
+        image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
+        plt.close()
+        return image_base64

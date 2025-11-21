@@ -1,6 +1,6 @@
+import atexit
 from abc import ABC, abstractmethod
 from concurrent.futures import ProcessPoolExecutor
-import atexit
 
 MAX_WORKERS = 4
 _SHARED_EXECUTOR = None
