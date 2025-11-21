@@ -3,14 +3,13 @@ import base64
 import io
 import os
 import random
-from concurrent.futures import ProcessPoolExecutor
 import uuid
 
 import matplotlib.pyplot as plt
 import numpy as np
 from deap import base, creator, tools, algorithms
 
-from solver_windows_service.solver import AsyncSolver
+from solver_windows_service.solver import AsyncSolver, get_shared_executor
 
 MAX_X = 100
 MAX_Y = 100
@@ -181,10 +180,9 @@ class TSPSolver(AsyncSolver):
         raw_tournsize = pop_size * 0.02333
         calculated_tournsize = int(round(raw_tournsize))
         tournsize = max(2, min(calculated_tournsize, pop_size))
-        with ProcessPoolExecutor(max_workers=MAX_WORKERS) as executor:
-            await loop.run_in_executor(
-                executor, TSPSolver._solve_for_executor, cities, pop_size, max_generations, tournsize
-            )
+        return await loop.run_in_executor(
+            get_shared_executor(), TSPSolver._solve_for_executor, cities, pop_size, max_generations, tournsize
+        )
 
     @staticmethod
     def _solve_for_executor(cities: list[tuple[float, float]] = None,
@@ -198,7 +196,7 @@ class TSPSolver(AsyncSolver):
         print("Shortest distance: ", shortest_distance)
         solving_progression = tsp.plot_solving_progression(avg=True)
         best_root = tsp.plot_best_route()
-        return shortest_distance, best_root, cities_graph, solving_progression
+        return shortest_distance, tsp.best, best_root, cities_graph, solving_progression
 
     @property
     def best_overall(self):
@@ -229,6 +227,13 @@ class TSPSolver(AsyncSolver):
         image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
         plt.close()
         return image_base64
+
+    @property
+    def best(self):
+        if not self.__best_overall:
+            return []
+
+        return [(self.__cities[city].x, self.__cities[city].y) for city in self.__best_overall]
 
     def plot_best_route(self):
         if not self.__best_overall:
